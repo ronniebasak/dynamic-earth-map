@@ -100,22 +100,27 @@ window.onload = function () {
 	// And in case you're wondering why? I've reverse engineered
 	// the svg file and built up the conditions
 	$('#actualSVG').on("click", "path", function () {
-		y = $(this).parent() // Checking the parent
-		x = y.prop('tagName'); // get the parent tagname
-		if (x == "g") { // if its a group
-
-			if (y.attr('id').length == 2) {
+		var immediateParent = $(this).parent() // Checking the parent
+		var parentTag = y.prop('tagName'); // get the parent tagname
+		var _id_to_pull="";
+		
+		if (parentTag == "g") { // if its a group
+			if (immediateParent.attr('id').length == 2) {
 				// COUNTRY
-				PullInfo($(this).parent().attr('id'));
-				// This function pulls from JSON and puts into their places;
+				_id_to_pull=immediateParent.attr('id');				
 			} else {
 				// GREENLAND
-				PullInfo($(this).parent().parent().attr('id'));
+				_id_to_pull=immediateParent.parent().attr('id');
 			}
 		} else if ($(this).attr('id') != "ocean") {
-			PullInfo($(this).attr('id'));
+			_id_to_pull=$(this).attr('id');
 		}
-		$('#info').slideDown();
+		
+		// This function pulls from JSON and puts into their places;
+		if(_id_to_pull!=""){ // Just a precaution. We dont want jibberish-gibberish on our window, are we?
+			PullInfo(_id_to_pull);
+			$('#info').slideDown();
+		}
 	});
 }
 
@@ -127,15 +132,10 @@ $("#close-info").click(function (evt) {
 // This function finds the country object given one of it's properties, only cca2 and cca3 can be used 
 // Primary key. Others will return the first occurance in alphabetical order
 function findCn(ccn, n) {
-	obj = null;
-	for (i = 0; i < cinfo.length; i++) {
-		if (cinfo[i][n] == ccn) {
-			obj = cinfo[i];
-			///console.log(obj);
-			break;
-		}
-	}
-	return obj;
+	var result=cinfo.find(function(element){
+		return element[n]==ccn;
+	});
+	return result!==undefined?result:null;
 }
 
 // This function pulls info about a country, given it's 2 letter country code
@@ -148,46 +148,30 @@ function PullInfo(cc2) {
 	$('#cca3').html(obj["cca3"]);
 	$('#tld').html(obj["tld"]);
 
-	tmp = ""
-	for (i = 0; i < obj["currency"].length; i++) {
-		tmp += obj["currency"][i] + " "
-	}
-	$('#currency').html(tmp);
-	tmp = ""
-	for (i = 0; i < obj["callingCode"].length; i++) {
-		tmp += "+" + obj["callingCode"][i].toString();
-	}
-	$('#callingCode').html(tmp);
+	
+	$('#currency').html(obj['currency'].join(' '));
+	$('#callingCode').html(
+		(obj['callingCode'].length>0?"+":"") + 
+		(obj["callingCode"].join(", +"))
+	);
 	$('#capital').html(obj["capital"]);
 	$('#region').html(obj["region"]);
 	$('#subregion').html(obj["subregion"]);
 
-	tmp = "";
-
-	if (obj["latlng"][1] < 0)
-		tmp += Math.abs(obj["latlng"][1]).toString() + " &deg;S, ";
-	else
-		tmp += Math.abs(obj["latlng"][1]).toString() + " &deg;N, ";
-	if (obj["latlng"][0] < 0)
-		tmp += Math.abs(obj["latlng"][0]).toString() + " &deg;W ";
-	else
-		tmp += Math.abs(obj["latlng"][0]).toString() + " &deg;E ";
-
-	$('#latlng').html(tmp);
+	$('#latlng').html(
+		Math.abs(obj['latlng'][1]).toString() + " &deg;" + (obj['latlng'][1]<0?'S':'N') + " " + // Latitude
+		Math.abs(obj['latlng'][0]).toString() + " &deg;" + (obj['latlng'][0]<0?'W':'E') // Longitude
+ 	);
 	$('#demonym').html(obj["demonym"]);
 	$('#landlocked').html(obj["landlocked"].toString());
 
-	tmp = "";
-	//console.log(obj["borders"].length);
-	for (k = 0; k < obj["borders"].length; k++) {
-		objx = findCn(obj["borders"][k], "cca3")
-		if (k < obj["borders"].length - 1)
-			tmp += objx["name"]["common"] + ", ";
-		else
-			tmp += objx["name"]["common"];
-
-	}
-	$('#border').html(tmp);
+	var borders=[];	
+	obj['borders'].forEach(function(value,index){
+		objx = findCn(value, "cca3")
+		borders.push(objx['name']['common']);
+	});
+	
+	$('#border').html(borders.join(", "));
 	$('#area').html(obj["area"].toString() + "km<sup>2</sup>");
 
 }
